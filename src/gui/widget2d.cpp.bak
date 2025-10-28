@@ -1,0 +1,846 @@
+/*
+ * ------------------------------------------------------------------------------------
+ *  File: widget2d.cpp
+ *  Project: Isis DICOM Viewer (derived from Asclepios DICOM Viewer)
+ *
+ *  Original code:
+ *      Copyright (c) 2020  Gavrilovici Eduard
+ *
+ *  Fork, refactoring, and ongoing development:
+ *      Copyright (c) 2025  Thales Matheus Mendonca Santos
+ *
+ *  Description:
+ *      Implements the Qt-based 2D viewer logic, coordinating image loading, overlay, interaction, and rendering helpers.
+ *
+ *  License:
+ *      This file is part of a derived work based on the Asclepios DICOM Viewer,
+ *      licensed under the MIT License.
+ *
+ *      Permission is hereby granted, free of charge, to any person obtaining a copy
+ *      of this software and associated documentation files (the "Software"), to deal
+ *      in the Software without restriction, including without limitation the rights
+ *      to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *      copies of the Software, and to permit persons to whom the Software is
+ *      furnished to do so, subject to the following conditions:
+ *
+ *      The above copyright notice and this permission notice shall be included in
+ *      all copies or substantial portions of the Software.
+ *
+ *      THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *      IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *      FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *      AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *      LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *      SOFTWARE.
+ * ------------------------------------------------------------------------------------
+ */
+
+#include "widget2d.h"
+#include "widget2dinteractor.h"
+#include "widget2dimagepresenter.h"
+#include "widget2dloadcontroller.h"
+#include "widget2doverlayupdater.h"
+#include "widget2drenderer.h"
+#include <QFile>
+#include <QFocusEvent>
+#include <QHBoxLayout>
+#include <QLoggingCategory>
+#include <QMetaObject>
+#include <QMouseEvent>
+#include <QPainter>
+#include <QPixmap>
+#include <QSignalBlocker>
+#include <QSizePolicy>
+#include <QTransform>
+#include <QString>
+#include <QKeyEvent>
+#include <QCursor>
+#include <QWheelEvent>
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <cstring>
+#include <limits>
+#include <memory>
+#include <stdexcept>
+#include <utility>
+#include "patient.h"
+#include "series.h"
+#include "study.h"
+#include "tabwidget.h"
+
+Q_DECLARE_LOGGING_CATEGORY(lcLoadingAnimation)
+Q_LOGGING_CATEGORY(lcWidget2D, "isis.gui.widget2d")
+
+
+bool isis::gui::Widget2D::startVolumeRendering()
+{
+        return (m_loadController) ? m_loadController->startRendering() : false;
+}
+
+void isis::gui::Widget2D::ensureImageLabel()
+{
+        if (!m_imageLabel)
+        {
+                m_imageLabel = new QLabel(this);
+                m_imageLabel->setAlignment(Qt::AlignCenter);
+                m_imageLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+                m_imageLabel->setMinimumSize(QSize(1, 1));
+                m_imageLabel->setStyleSheet(QStringLiteral("background-color: black;"));
+                m_imageLabel->setMouseTracking(true);
+                m_imageLabel->hide();
+        }
+        if (m_imageLabel)
+        {
+                m_imageLabel->removeEventFilter(this);
+                m_imageLabel->installEventFilter(this);
+        }
+        ensureOverlayWidget();
+        setCursorForActiveTool();
+}
+
+void isis::gui::Widget2D::ensureOverlayWidget()
+{
+        if (!m_overlayUpdater)
+        {
+                return;
+        }
+        m_overlayUpdater->ensureOverlayWidget(m_imageLabel);
+}
+
+void isis::gui::Widget2D::refreshDisplayedFrame(const bool t_updateOverlay)
+{
+        if (m_renderer)
+        {
+                m_renderer->refreshDisplayedFrame(t_updateOverlay);
+        }
+}
+
+void isis::gui::Widget2D::applyLoadedFrame(const int t_index)
+{
+        if (m_renderer)
+        {
+                m_renderer->applyLoadedFrame(t_index);
+        }
+}
+
+void isis::gui::Widget2D::positionLoadingAnimation()
+{
+        if (!m_loadingAnimation)
+        {
+                return;
+        }
+
+	const QRect targetRect = (m_imageLabel && !m_imageLabel->geometry().isEmpty())
+		? m_imageLabel->geometry()
+		: rect();
+	if (targetRect.isEmpty())
+	{
+		return;
+	}
+	const QSize overlaySize = m_loadingAnimation->size();
+	const QPoint desired = targetRect.center() - QPoint(overlaySize.width() / 2, overlaySize.height() / 2);
+	const int minX = targetRect.left();
+	const int maxX = targetRect.right() - overlaySize.width() + 1;
+	const int minY = targetRect.top();
+	const int maxY = targetRect.bottom() - overlaySize.height() + 1;
+	const int clampedX = std::max(minX, std::min(desired.x(), maxX));
+	const int clampedY = std::max(minY, std::min(desired.y(), maxY));
+	m_loadingAnimation->move(clampedX, clampedY);
+	qCDebug(lcLoadingAnimation) << "Widget2D overlay positioned"
+		<< "widget" << this
+		<< "targetRect" << targetRect
+		<< "overlaySize" << overlaySize
+		<< "topLeft" << QPoint(clampedX, clampedY);
+}
+
+void isis::gui::Widget2D::hideOverlayWidget()
+{
+        if (m_renderer)
+        {
+                m_renderer->hideOverlay();
+        }
+}
+
+void isis::gui::Widget2D::keyPressEvent(QKeyEvent* t_event)
+{
+        if (!t_event)
+        {
+                QWidget::keyPressEvent(t_event);
+                return;
+        }
+
+        bool handled = false;
+        if (!t_event->modifiers())
+        {
+                switch (t_event->key())
+                {
+                case Qt::Key_B:
+                        setActiveTool(InteractionTool::scroll);
+                        handled = true;
+                        break;
+                case Qt::Key_W:
+                        setActiveTool(InteractionTool::window);
+                        handled = true;
+                        break;
+                case Qt::Key_Z:
+                        setActiveTool(InteractionTool::zoom);
+                        handled = true;
+                        break;
+                case Qt::Key_M:
+                        setActiveTool(InteractionTool::pan);
+                        handled = true;
+                        break;
+                default:
+                        break;
+                }
+        }
+
+        if (handled)
+        {
+                t_event->accept();
+                return;
+        }
+        QWidget::keyPressEvent(t_event);
+}
+
+void isis::gui::Widget2D::updateActiveToolUi()
+{
+        setCursorForActiveTool();
+        updateToolOverlay();
+}
+
+void isis::gui::Widget2D::updateToolOverlay()
+{
+        if (!m_overlayUpdater)
+        {
+                return;
+        }
+        m_overlayUpdater->updateToolOverlay(m_activeTool, m_renderingActive, m_imageLabel);
+}
+
+void isis::gui::Widget2D::resetPanOffset()
+{
+        m_panOffset = {};
+        m_state.resetPanOffset();
+}
+
+void isis::gui::Widget2D::clampPanOffset(const QSize& labelSize, const QSize& targetSize)
+{
+        if (labelSize.isEmpty())
+        {
+                return;
+        }
+
+        const QPointF baseOffset(
+                static_cast<double>(labelSize.width() - targetSize.width()) / 2.0,
+                static_cast<double>(labelSize.height() - targetSize.height()) / 2.0);
+        QPointF desiredTopLeft = baseOffset + m_panOffset;
+
+        if (targetSize.width() <= labelSize.width())
+        {
+                desiredTopLeft.setX(baseOffset.x());
+        }
+        else
+        {
+                const double minX = static_cast<double>(labelSize.width() - targetSize.width());
+                const double maxX = 0.0;
+                desiredTopLeft.setX(std::clamp(desiredTopLeft.x(), minX, maxX));
+        }
+
+        if (targetSize.height() <= labelSize.height())
+        {
+                desiredTopLeft.setY(baseOffset.y());
+        }
+        else
+        {
+                const double minY = static_cast<double>(labelSize.height() - targetSize.height());
+                const double maxY = 0.0;
+                desiredTopLeft.setY(std::clamp(desiredTopLeft.y(), minY, maxY));
+        }        m_panOffset = desiredTopLeft - baseOffset;
+        m_state.setPanOffset(m_panOffset);
+}
+
+void isis::gui::Widget2D::setCursorForActiveTool(const bool t_handClosed)
+{
+        Qt::CursorShape shape = Qt::ArrowCursor;
+        switch (m_activeTool)
+        {
+        case InteractionTool::scroll:
+                shape = Qt::ArrowCursor;
+                break;
+        case InteractionTool::window:
+                shape = Qt::CrossCursor;
+                break;
+        case InteractionTool::zoom:
+                shape = Qt::SizeVerCursor;
+                break;
+        case InteractionTool::pan:
+                shape = t_handClosed ? Qt::ClosedHandCursor : Qt::OpenHandCursor;
+                break;
+        default:
+                shape = Qt::ArrowCursor;
+                break;
+        }
+
+        setCursor(shape);
+        if (m_imageLabel)
+        {
+                m_imageLabel->setCursor(shape);
+        }
+}
+
+void isis::gui::Widget2D::adjustFrameByStep(const int t_step)
+{
+        if (!m_renderingActive || !m_imagePresenter || t_step == 0)
+        {
+                return;
+        }
+        const int frameCount = std::max<int>(m_imagePresenter->frameCount(), 0);
+        if (frameCount <= 0)
+        {
+                return;
+        }
+        const int targetIndex = std::clamp(m_currentFrameIndex + t_step, 0, frameCount - 1);
+        if (targetIndex == m_currentFrameIndex)
+        {
+                return;
+        }
+        if (m_scroll)
+        {
+                const QSignalBlocker blocker(m_scroll);
+                m_scroll->setValue(targetIndex);
+        }
+        applyLoadedFrame(targetIndex);
+}
+
+void isis::gui::Widget2D::resetWindowLevel()
+{
+        if (!m_imagePresenter)
+        {
+                return;
+        }
+        const auto initialState = m_imagePresenter->initialState();
+        auto& presentation = m_state.presentation();
+        presentation.WindowCenter = initialState.WindowCenter;
+        presentation.WindowWidth = initialState.WindowWidth;
+        applyLoadedFrame(m_currentFrameIndex);
+}
+
+void isis::gui::Widget2D::handleRenderingFailure(const QString& t_reason)
+{
+        if (m_loadController)
+        {
+                m_loadController->handleFailure(t_reason);
+        }
+}
+
+bool isis::gui::Widget2D::eventFilter(QObject* t_watched, QEvent* t_event)
+{
+        if (m_interactor && m_interactor->handleEvent(t_watched, t_event))
+        {
+                return true;
+        }
+        return WidgetBase::eventFilter(t_watched, t_event);
+}
+
+
+isis::gui::Widget2D::Widget2D(QWidget* parent)
+        : WidgetBase(parent)
+{
+        initData();
+        initView();
+        createConnections();
+        m_tabWidget = parent;
+        m_state.resetInteractiveState();
+        m_loadController = std::make_unique<Widget2DLoadController>(*this);
+        if (m_loadController)
+        {
+                Q_UNUSED(connect(m_loadController.get(),
+                        &Widget2DLoadController::framesReady,
+                        this,
+                        &Widget2D::onFramesReady));
+        }
+        m_overlayUpdater = std::make_unique<Widget2DOverlayUpdater>();
+        m_interactor = std::make_unique<Widget2DInteractor>(*this, m_state);
+        m_renderer = std::make_unique<Widget2DRenderer>(*this, m_state);
+        ensureProgressiveRefreshTimer();
+        if (m_progressiveRefreshTimer)
+        {
+                m_progressiveRefreshTimer->stop();
+        }
+        updateActiveToolUi();
+}
+//-----------------------------------------------------------------------------
+isis::gui::Widget2D::~Widget2D() = default;
+
+//-----------------------------------------------------------------------------
+void isis::gui::Widget2D::initView()
+{
+        if (layout())
+        {
+                delete layout();
+        }
+        m_ui.setupUi(this);
+        auto* containerLayout = new QHBoxLayout(this);
+        containerLayout->setContentsMargins(0, 0, 0, 0);
+        containerLayout->setSpacing(0);
+        setLayout(containerLayout);
+        ensureImageLabel();
+        if (m_imageLabel && layout()->indexOf(m_imageLabel) == -1)
+        {
+                layout()->addWidget(m_imageLabel);
+        }
+        if (!m_errorLabel)
+        {
+                m_errorLabel = new QLabel(tr("Unable to render the selected image."), this);
+                m_errorLabel->setAlignment(Qt::AlignCenter);
+                m_errorLabel->setWordWrap(true);
+                m_errorLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+                m_errorLabel->setStyleSheet(QStringLiteral("color: #f44336; background-color: rgba(0, 0, 0, 180);"
+                                                       "padding: 16px;"));
+                m_errorLabel->hide();
+        }
+        layout()->addWidget(m_errorLabel);
+        layout()->addWidget(m_scroll);
+        if (m_imageLabel && m_vtkEvents)
+        {
+                m_imageLabel->installEventFilter(m_vtkEvents.get());
+        }
+}
+//-----------------------------------------------------------------------------
+void isis::gui::Widget2D::initData()
+{
+        disconnectScroll();
+        if (auto* widgetLayout = layout())
+        {
+                if (m_scroll)
+                {
+                        widgetLayout->removeWidget(m_scroll);
+                }
+                if (m_imageLabel)
+                {
+                        widgetLayout->removeWidget(m_imageLabel);
+                }
+                if (m_errorLabel)
+                {
+                        widgetLayout->removeWidget(m_errorLabel);
+                }
+        }
+        delete m_scroll;
+        m_scroll = new QScrollBar(Qt::Vertical, this);
+        setScrollStyle();
+        if (!m_vtkEvents)
+        {
+                m_vtkEvents = std::make_unique<vtkEventFilter>(this);
+        }
+        m_pendingScrollRefresh = false;
+        m_pendingSeriesRefresh = nullptr;
+        m_pendingImageRefresh = nullptr;
+        m_progressiveRefreshPending = false;
+        if (m_progressiveRefreshTimer)
+        {
+                m_progressiveRefreshTimer->stop();
+        }
+}
+//-----------------------------------------------------------------------------
+void isis::gui::Widget2D::render()
+{
+        m_renderAbortedDueToMissingContext = false;
+        if (!m_series || !m_image)
+        {
+                const auto trigger = m_lastRenderRequestSource.isEmpty()
+                        ? QStringLiteral("unknown")
+                        : m_lastRenderRequestSource;
+                qCWarning(lcWidget2D)
+                        << "Render aborted due to missing series/image context."
+                        << "seriesMissing" << (m_series == nullptr)
+                        << "imageMissing" << (m_image == nullptr)
+                        << "trigger" << trigger
+                        << "seriesPtr" << static_cast<const void*>(m_series)
+                        << "imagePtr" << static_cast<const void*>(m_image);
+                m_isImageLoaded = false;
+                m_renderAbortedDueToMissingContext = true;
+                return;
+        }
+
+        if (!startVolumeRendering())
+        {
+                qCWarning(lcWidget2D) << "GDCM rendering path failed to start."
+                                      << "series" << static_cast<const void*>(m_series)
+                                      << "image" << static_cast<const void*>(m_image);
+        }
+}
+
+void isis::gui::Widget2D::waitForPendingTasks() const
+{
+        if (m_loadController)
+        {
+                m_loadController->waitForPendingTasks();
+        }
+}
+
+void isis::gui::Widget2D::setFitToWindowEnabled(const bool t_enabled)
+{
+        if (m_fitToWindowEnabled == t_enabled)
+        {
+                return;
+        }
+
+        m_fitToWindowEnabled = t_enabled;
+        m_state.setFitToWindowEnabled(t_enabled);
+        if (m_fitToWindowEnabled)
+        {
+                resetPanOffset();
+        }
+        if (m_renderingActive && m_imagePresenter && m_imagePresenter->isValid())
+        {
+                refreshDisplayedFrame(true);
+        }
+}
+
+void isis::gui::Widget2D::setActiveTool(const InteractionTool t_tool)
+{
+        if (m_activeTool == t_tool)
+        {
+                return;
+        }
+
+        m_activeTool = t_tool;
+        m_windowLevelDragging = false;
+        m_scrollDragging = false;
+        m_zoomDragging = false;
+        m_panDragging = false;
+        m_scrollDragAccumulator = 0.0;
+        updateActiveToolUi();
+        emit activeToolChanged(m_activeTool);
+}
+//-----------------------------------------------------------------------------
+void isis::gui::Widget2D::createConnections()
+{
+        setFocusPolicy(Qt::FocusPolicy::WheelFocus);
+        if (m_imageLabel && m_vtkEvents)
+        {
+                m_imageLabel->installEventFilter(m_vtkEvents.get());
+                Q_UNUSED(connect(m_vtkEvents.get(),
+                        &vtkEventFilter::activateWidget,
+                        this, &Widget2D::onActivateWidget));
+                Q_UNUSED(connect(m_vtkEvents.get(),
+                        &vtkEventFilter::setMaximized,
+                        this, &Widget2D::onSetMaximized));
+        }
+}
+//-----------------------------------------------------------------------------
+void isis::gui::Widget2D::resetView()
+{
+        m_state.resetInteractiveState();
+        resetScroll();
+        if (m_errorLabel)
+        {
+                m_errorLabel->hide();
+        }
+        if (m_imageLabel)
+        {
+                m_imageLabel->hide();
+                m_imageLabel->clear();
+        }
+        m_imagePresenter.reset();
+        m_state.setPresentation({});
+        m_renderingActive = false;
+        m_currentFrameIndex = 0;
+        m_cachedFrame = {};
+        m_displayZoomFactor = 1.0;
+        m_manualZoomFactor = 1.0;
+        m_fitToWindowEnabled = false;
+        m_windowLevelDragging = false;
+        m_scrollDragging = false;
+        m_zoomDragging = false;
+        m_panDragging = false;
+        m_scrollDragAccumulator = 0.0;
+        resetPanOffset();
+        m_state.setInitialWindowCenter(0.0);
+        m_state.setInitialWindowWidth(1.0);
+        hideOverlayWidget();
+        m_pendingScrollRefresh = false;
+        m_pendingSeriesRefresh = nullptr;
+        m_pendingImageRefresh = nullptr;
+        if (m_loadController)
+        {
+                m_loadController->waitForPendingTasks();
+        }
+        m_isImageLoaded = false;
+        m_image = nullptr;
+        m_series = nullptr;
+        m_activeTool = InteractionTool::scroll;
+        updateActiveToolUi();
+        //todo reset title of tab
+        disconnectScroll();
+        createConnections();
+        qCInfo(lcWidget2D) << "View reset.";
+}
+//-----------------------------------------------------------------------------
+void isis::gui::Widget2D::setSliderValues(const int& t_min, const int& t_max, const int& t_value)
+{
+        if (m_scroll)
+        {
+                const QSignalBlocker blocker(m_scroll);
+                m_scroll->setMinimum(t_min);
+                m_scroll->setMaximum(t_max);
+                m_scroll->setValue(t_value);
+                qCDebug(lcWidget2D) << "Scroll slider configured. Min:" << t_min
+                                    << "Max:" << t_max << "Value:" << t_value;
+        }
+}
+//-----------------------------------------------------------------------------
+void isis::gui::Widget2D::onActivateWidget(const bool& t_flag)
+{
+	if (t_flag)
+	{
+		auto* event = new QFocusEvent(QEvent::FocusIn,
+			Qt::FocusReason::MouseFocusReason);
+		focusInEvent(event);
+		delete event;
+	}
+}
+//-----------------------------------------------------------------------------
+void isis::gui::Widget2D::onApplyTransformation(const transformationType& t_type)
+{
+        if (m_renderingActive && m_imagePresenter && m_imagePresenter->isValid())
+        {
+                auto& presentation = m_state.presentation();
+                switch (t_type)
+                {
+                case transformationType::flipHorizontal:
+                        presentation.FlipHorizontal = !presentation.FlipHorizontal;
+                        break;
+                case transformationType::flipVertical:
+                        presentation.FlipVertical = !presentation.FlipVertical;
+                        break;
+                case transformationType::rotateLeft:
+                        presentation.RotationSteps = (presentation.RotationSteps + 3) % 4;
+                        break;
+                case transformationType::rotateRight:
+                        presentation.RotationSteps = (presentation.RotationSteps + 1) % 4;
+                        break;
+                case transformationType::invert:
+                        presentation.InvertColors = !presentation.InvertColors;
+                        break;
+                default:
+                        break;
+                }
+                applyLoadedFrame(m_currentFrameIndex);
+                return;
+        }
+
+}
+//-----------------------------------------------------------------------------
+void isis::gui::Widget2D::onRefreshScrollValues(isis::core::Series* t_series, isis::core::Image* t_image)
+{
+        auto* const study = t_series->getParentObject();
+        if (canScrollBeRefreshed(study->getParentObject()->getIndex(),
+                study->getIndex(), t_series->getIndex()))
+        {
+                if (!m_image->getIsMultiFrame())
+                {
+                        const auto availableImages = static_cast<int>(t_series->snapshotSingleFramePaths().size());
+                        if (m_imagePresenter && m_imagePresenter->isValid() && availableImages > m_imagePresenter->frameCount())
+                        {
+                                m_pendingScrollRefresh = true;
+                                m_pendingSeriesRefresh = t_series;
+                                m_pendingImageRefresh = t_image;
+                                scheduleProgressiveRefresh();
+                                return;
+                        }
+
+                        const int presenterFrames = m_imagePresenter ? m_imagePresenter->frameCount() : availableImages;
+                        const int maxIndex = std::max(presenterFrames - 1, 0);
+                        const int currentScrollValue = m_scroll ? m_scroll->value() : 0;
+                        int value =
+                                (t_image->getIndex() <= currentScrollValue
+                                && presenterFrames > 1 && t_image->getIndex() > 0)
+                                ? currentScrollValue + 1
+                                : currentScrollValue;
+                        value = std::clamp(value, 0, maxIndex);
+                        setSliderValues(0, maxIndex, value);
+                        if (m_renderingActive && m_overlayUpdater)
+                        {
+                                const int frameCount = std::max(presenterFrames, availableImages);
+                                const QString seriesNumber = (m_series)
+                                        ? QString::fromStdString(m_series->getNumber())
+                                        : QString();
+                                const auto& presentation = m_state.presentation();
+                                const double zoomFactor = (m_displayZoomFactor > 0.0 && std::isfinite(m_displayZoomFactor))
+                                        ? m_displayZoomFactor
+                                        : m_manualZoomFactor;
+                                m_overlayUpdater->updateFrameOverlay(seriesNumber,
+                                        value,
+                                        frameCount,
+                                        presentation.WindowCenter,
+                                        presentation.WindowWidth,
+                                        zoomFactor,
+                                        m_activeTool,
+                                        m_imageLabel,
+                                        m_renderingActive);
+                        }
+                        qCDebug(lcWidget2D) << "Scroll values refreshed from importer. Series index:" << t_series->getIndex()
+                                            << "Image index:" << t_image->getIndex()
+                                            << "Current value:" << value;
+                }
+        }
+}
+
+void isis::gui::Widget2D::onFramesReady(isis::core::Series* t_series, int t_appendedFrames)
+{
+        QMetaObject::invokeMethod(this,
+                [this, t_series, t_appendedFrames]()
+                {
+                        handleFramesReadyOnGuiThread(t_series, t_appendedFrames);
+                },
+                Qt::QueuedConnection);
+}
+
+void isis::gui::Widget2D::handleFramesReadyOnGuiThread(isis::core::Series* t_series, int t_appendedFrames)
+{
+        if (!m_renderingActive || !m_imagePresenter)
+        {
+                m_pendingScrollRefresh = false;
+                m_pendingSeriesRefresh = nullptr;
+                m_pendingImageRefresh = nullptr;
+                return;
+        }
+
+        if (t_series && m_series && t_series != m_series)
+        {
+                return;
+        }
+
+        isis::core::Series* seriesToRefresh = m_pendingSeriesRefresh ? m_pendingSeriesRefresh : m_series;
+        isis::core::Image* imageToRefresh = m_pendingImageRefresh ? m_pendingImageRefresh : m_image;
+
+        const bool hadPendingRefresh = m_pendingScrollRefresh;
+        m_pendingScrollRefresh = false;
+        m_pendingSeriesRefresh = nullptr;
+        m_pendingImageRefresh = nullptr;
+
+        if (!hadPendingRefresh && t_appendedFrames <= 0)
+        {
+                return;
+        }
+
+        if (seriesToRefresh && imageToRefresh)
+        {
+                if (!hadPendingRefresh && seriesToRefresh == m_series && imageToRefresh == m_image)
+                {
+                        // Ensure UI stays in sync even when no pending flag was set.
+                        onRefreshScrollValues(seriesToRefresh, imageToRefresh);
+                        return;
+                }
+
+                onRefreshScrollValues(seriesToRefresh, imageToRefresh);
+        }
+}
+
+void isis::gui::Widget2D::onSetMaximized() const
+{
+        if(m_tabWidget)
+        {
+                dynamic_cast<TabWidget*>(m_tabWidget)->onMaximize();
+        }
+}
+//-----------------------------------------------------------------------------
+void isis::gui::Widget2D::closeEvent(QCloseEvent* t_event)
+{
+        initData();
+        initView();
+        QWidget::closeEvent(t_event);
+}
+//-----------------------------------------------------------------------------
+void isis::gui::Widget2D::onChangeImage(int t_index)
+{
+        if (!m_renderingActive)
+        {
+                qCDebug(lcWidget2D) << "Ignoring scroll request because GDCM rendering is inactive.";
+                return;
+        }
+        applyLoadedFrame(t_index);
+}
+//-----------------------------------------------------------------------------
+void isis::gui::Widget2D::connectScroll()
+{
+        if (m_scroll)
+        {
+                Q_UNUSED(connect(m_scroll, &QScrollBar::valueChanged,
+                        this, &Widget2D::onChangeImage));
+        }
+}
+//-----------------------------------------------------------------------------
+void isis::gui::Widget2D::startLoadingAnimation()
+{
+        m_loadingAnimation = std::make_unique<LoadingAnimation>(this);
+        m_loadingAnimation->setAttribute(Qt::WA_TransparentForMouseEvents, true);
+        m_loadingAnimation->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+        const QSize desiredSize(140, 140);
+        m_loadingAnimation->setFixedSize(desiredSize);
+        positionLoadingAnimation();
+        qCInfo(lcLoadingAnimation) << "Widget2D overlay created"
+                << "widget" << this
+                << "size" << desiredSize
+                << "geometry" << geometry();
+        m_loadingAnimation->show();
+        m_loadingAnimation->raise();
+}
+//-----------------------------------------------------------------------------
+void isis::gui::Widget2D::disconnectScroll() const
+{
+        if (m_scroll)
+        {
+                disconnect(m_scroll, &QScrollBar::valueChanged,
+                           this, &Widget2D::onChangeImage);
+        }
+}
+//-----------------------------------------------------------------------------
+void isis::gui::Widget2D::resetScroll()
+{
+        if (m_scroll)
+        {
+		const QSignalBlocker blocker(m_scroll);
+		m_scroll->setValue(0);
+		m_scroll->setMaximum(0);
+	}
+	else
+	{
+		m_scroll = new QScrollBar(Qt::Vertical, this);
+		setScrollStyle();
+	}
+}
+
+void isis::gui::Widget2D::setScrollStyle() const
+{
+        m_scroll->hide();
+        QFile file(scroll2DStyle);
+        if (file.open(QFile::ReadOnly))
+        {
+                const QString styleSheet = QLatin1String(file.readAll());
+                m_scroll->setStyleSheet(styleSheet);
+        }
+}
+
+void isis::gui::Widget2D::resizeEvent(QResizeEvent* t_event)
+{
+        QWidget::resizeEvent(t_event);
+        positionLoadingAnimation();
+        if (m_renderingActive)
+        {
+                applyLoadedFrame(m_currentFrameIndex);
+        }
+}
+//-----------------------------------------------------------------------------
+bool isis::gui::Widget2D::canScrollBeRefreshed(const int& t_patientIndex, const int& t_studyIndex,
+                                                    const int& t_seriesIndex) const
+{
+        return m_renderingActive && m_imagePresenter && m_imagePresenter->isValid()
+                && t_patientIndex == m_patientIndex && t_studyIndex == m_studyIndex
+                && m_seriesIndex == t_seriesIndex;
+}
+

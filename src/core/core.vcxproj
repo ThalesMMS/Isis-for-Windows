@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="corecontroller.cpp" />
+    <ClCompile Include="corerepository.cpp" />
+    <ClCompile Include="database\dicomdatabase.cpp" />
+    <ClCompile Include="dicomreader.cpp" />
+    <ClCompile Include="dicomvolume.cpp" />
+    <ClCompile Include="dicomvolumecache.cpp" />
+    <ClCompile Include="dicomvolumemetadata.cpp" />
+    <ClCompile Include="dicomseriesloader.cpp" />
+    <ClCompile Include="events\callbackmanager.cpp" />
+    <ClCompile Include="filters\edgeenhancementfilter.cpp" />
+    <ClCompile Include="network\dimseassociation.cpp" />
+    <ClCompile Include="network\dimseconfig.cpp" />
+    <ClCompile Include="network\dimseservices.cpp" />
+    <ClCompile Include="network\dimsestoragescp.cpp" />
+    <ClCompile Include="filters\morphologyfilter.cpp" />
+    <ClCompile Include="filters\noisereductionfilter.cpp" />
+    <ClCompile Include="image.cpp" />
+    <ClCompile Include="patient.cpp" />
+    <ClCompile Include="pipeline\filternode.cpp" />
+    <ClCompile Include="pipeline\processingnode.cpp" />
+    <ClCompile Include="pipeline\processingpipeline.cpp" />
+    <ClCompile Include="processing\vtksimpleitkbridge.cpp" />
+    <ClCompile Include="registration\affineregistration.cpp" />
+    <ClCompile Include="registration\deformableregistration.cpp" />
+    <ClCompile Include="registration\rigidregistration.cpp" />
+    <ClCompile Include="segmentation\regiongrowingsegmentation.cpp" />
+    <ClCompile Include="segmentation\thresholdsegmentation.cpp" />
+    <ClCompile Include="segmentation\watershedsegmentation.cpp" />
+    <ClCompile Include="series.cpp" />
+    <ClCompile Include="smartdjdecoderregistration.cpp" />
+    <ClCompile Include="study.cpp" />
+    <ClCompile Include="testing\testutils.cpp" />
+    <ClCompile Include="utils.cpp" />
+    <ClCompile Include="utils\performanceoptimizer.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="corecontroller.h" />
+    <ClInclude Include="corerepository.h" />
+    <ClInclude Include="database\dicomdatabase.h" />
+    <ClInclude Include="dicomreader.h" />
+    <ClInclude Include="dicomvolume.h" />
+    <ClInclude Include="dicomvolumecache.h" />
+    <ClInclude Include="dicomvolumemetadata.h" />
+    <ClInclude Include="dicomseriesloader.h" />
+    <ClInclude Include="events\callbackmanager.h" />
+    <ClInclude Include="events\processingcallback.h" />
+    <ClInclude Include="events\processingevent.h" />
+    <ClInclude Include="filters\edgeenhancementfilter.h" />
+    <ClInclude Include="network\dimseassociation.h" />
+    <ClInclude Include="network\dimseconfig.h" />
+    <ClInclude Include="network\dimseservices.h" />
+    <ClInclude Include="network\dimsestoragescp.h" />
+    <ClInclude Include="filters\morphologyfilter.h" />
+    <ClInclude Include="filters\noisereductionfilter.h" />
+    <ClInclude Include="image.h" />
+    <ClInclude Include="patient.h" />
+    <ClInclude Include="pipeline\filternode.h" />
+    <ClInclude Include="pipeline\processingnode.h" />
+    <ClInclude Include="pipeline\processingpipeline.h" />
+    <ClInclude Include="processing\vtksimpleitkbridge.h" />
+    <ClInclude Include="registration\affineregistration.h" />
+    <ClInclude Include="registration\deformableregistration.h" />
+    <ClInclude Include="registration\rigidregistration.h" />
+    <ClInclude Include="segmentation\regiongrowingsegmentation.h" />
+    <ClInclude Include="segmentation\thresholdsegmentation.h" />
+    <ClInclude Include="segmentation\watershedsegmentation.h" />
+    <ClInclude Include="series.h" />
+    <ClInclude Include="smartdjdecoderregistration.h" />
+    <ClInclude Include="study.h" />
+    <ClInclude Include="testing\testutils.h" />
+    <ClInclude Include="utils.h" />
+    <ClInclude Include="utils\performanceoptimizer.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ClassDiagram.cd" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{14C7108B-3780-4C4B-98CC-9181C830FAB8}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>core</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+    <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CRT_SECURE_NO_WARNINGS;CORE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>_DEBUG;_CRT_SECURE_NO_WARNINGS;CORE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <PrecompiledHeaderFile />
+      <AdditionalIncludeDirectories>$(ProjectDir)..\..\deps\Qt\6.7.2\msvc2019_64\include;$(ProjectDir)..\..\deps\Qt\6.7.2\msvc2019_64\include\QtCore;$(ProjectDir)..\..\deps\Qt\6.7.2\msvc2019_64\include\QtConcurrent;$(ProjectDir)..\..\deps\Qt\6.7.2\msvc2019_64\include\QtOpenGLWidgets;$(ProjectDir)..\..\deps\Qt\6.7.2\msvc2019_64\include\QtSql;..\..\lib\include;..\\\\..\\\\lib\\\\include\\\\gdcm-3.3;..\\\\..\\\\lib\\\\include\\\\gdcm-3.3\\\\vtk-9.3;..\\..\\lib\\include\\vtk-9.3;..\..\lib\include\dcmtk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>..\x64\Debug;..\..\lib\Debug;..\..\lib\debug\vtk;..\..\lib\debug\dcmtk;..\..\deps\gdcm-install\lib;$(ProjectDir)..\..\deps\Qt\6.7.2\msvc2019_64\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Qt6Cored.lib;Qt6Concurrentd.lib;Qt6OpenGLWidgetsd.lib;Qt6Sqld.lib;dcmtk.lib;gdcmcharls.lib;gdcmCommon.lib;gdcmDICT.lib;gdcmDSED.lib;gdcmexpat.lib;gdcmgetopt.lib;gdcmIOD.lib;gdcmjpeg12.lib;gdcmjpeg16.lib;gdcmjpeg8.lib;gdcmMEXD.lib;gdcmMSFF.lib;gdcmopenjp2.lib;gdcmzlib.lib;socketxx.lib;vtkgdcm-9.3d.lib;vtkChartsCore-9.3d.lib;vtkCommonColor-9.3d.lib;vtkCommonComputationalGeometry-9.3d.lib;vtkCommonCore-9.3d.lib;vtkCommonDataModel-9.3d.lib;vtkCommonExecutionModel-9.3d.lib;vtkCommonMath-9.3d.lib;vtkCommonMisc-9.3d.lib;vtkCommonSystem-9.3d.lib;vtkCommonTransforms-9.3d.lib;vtkDICOMParser-9.3d.lib;vtkDomainsChemistry-9.3d.lib;vtkDomainsChemistryOpenGL2-9.3d.lib;vtkdoubleconversion-9.3d.lib;vtkexodusII-9.3d.lib;vtkexpat-9.3d.lib;vtkFiltersAMR-9.3d.lib;vtkFiltersCore-9.3d.lib;vtkFiltersExtraction-9.3d.lib;vtkFiltersFlowPaths-9.3d.lib;vtkFiltersGeneral-9.3d.lib;vtkFiltersGeneric-9.3d.lib;vtkFiltersGeometry-9.3d.lib;vtkFiltersHybrid-9.3d.lib;vtkFiltersHyperTree-9.3d.lib;vtkFiltersImaging-9.3d.lib;vtkFiltersModeling-9.3d.lib;vtkFiltersParallel-9.3d.lib;vtkFiltersParallelImaging-9.3d.lib;vtkFiltersPoints-9.3d.lib;vtkFiltersProgrammable-9.3d.lib;vtkFiltersSelection-9.3d.lib;vtkFiltersSMP-9.3d.lib;vtkFiltersSources-9.3d.lib;vtkFiltersStatistics-9.3d.lib;vtkFiltersTexture-9.3d.lib;vtkFiltersTopology-9.3d.lib;vtkFiltersVerdict-9.3d.lib;vtkfreetype-9.3d.lib;vtkGeovisCore-9.3d.lib;vtkgl2ps-9.3d.lib;vtkglew-9.3d.lib;vtkGUISupportQt-9.3d.lib;vtkhdf5_hl-9.3d.lib;vtkhdf5-9.3d.lib;vtkImagingColor-9.3d.lib;vtkImagingCore-9.3d.lib;vtkImagingFourier-9.3d.lib;vtkImagingGeneral-9.3d.lib;vtkImagingHybrid-9.3d.lib;vtkImagingMath-9.3d.lib;vtkImagingMorphological-9.3d.lib;vtkImagingSources-9.3d.lib;vtkImagingStatistics-9.3d.lib;vtkImagingStencil-9.3d.lib;vtkInfovisCore-9.3d.lib;vtkInfovisLayout-9.3d.lib;vtkInteractionImage-9.3d.lib;vtkInteractionStyle-9.3d.lib;vtkInteractionWidgets-9.3d.lib;vtkIOAMR-9.3d.lib;vtkIOAsynchronous-9.3d.lib;vtkIOCityGML-9.3d.lib;vtkIOCore-9.3d.lib;vtkIOEnSight-9.3d.lib;vtkIOExodus-9.3d.lib;vtkIOExport-9.3d.lib;vtkIOExportGL2PS-9.3d.lib;vtkIOExportPDF-9.3d.lib;vtkIOGeometry-9.3d.lib;vtkIOImage-9.3d.lib;vtkIOImport-9.3d.lib;vtkIOInfovis-9.3d.lib;vtkIOLegacy-9.3d.lib;vtkIOLSDyna-9.3d.lib;vtkIOMINC-9.3d.lib;vtkIOMovie-9.3d.lib;vtkIONetCDF-9.3d.lib;vtkIOParallel-9.3d.lib;vtkIOParallelXML-9.3d.lib;vtkIOPLY-9.3d.lib;vtkIOSegY-9.3d.lib;vtkIOSQL-9.3d.lib;vtkIOTecplotTable-9.3d.lib;vtkIOVeraOut-9.3d.lib;vtkIOVideo-9.3d.lib;vtkIOXML-9.3d.lib;vtkIOXMLParser-9.3d.lib;vtkjpeg-9.3d.lib;vtkjsoncpp-9.3d.lib;vtklibharu-9.3d.lib;vtklibxml2-9.3d.lib;vtklz4-9.3d.lib;vtklzma-9.3d.lib;vtkmetaio-9.3d.lib;vtknetcdf-9.3d.lib;vtkogg-9.3d.lib;vtkParallelCore-9.3d.lib;vtkpng-9.3d.lib;vtkpugixml-9.3d.lib;vtkRenderingAnnotation-9.3d.lib;vtkRenderingContext2D-9.3d.lib;vtkRenderingContextOpenGL2-9.3d.lib;vtkRenderingCore-9.3d.lib;vtkRenderingFreeType-9.3d.lib;vtkRenderingGL2PSOpenGL2-9.3d.lib;vtkRenderingImage-9.3d.lib;vtkRenderingLabel-9.3d.lib;vtkRenderingLOD-9.3d.lib;vtkRenderingOpenGL2-9.3d.lib;vtkRenderingQt-9.3d.lib;vtkRenderingVolume-9.3d.lib;vtkRenderingVolumeOpenGL2-9.3d.lib;vtksqlite-9.3d.lib;vtksys-9.3d.lib;vtktheora-9.3d.lib;vtktiff-9.3d.lib;vtkverdict-9.3d.lib;vtkViewsContext2D-9.3d.lib;vtkViewsCore-9.3d.lib;vtkViewsInfovis-9.3d.lib;vtkViewsQt-9.3d.lib;vtkzlib-9.3d.lib;ws2_32.lib;netapi32.lib;iphlpapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CRT_SECURE_NO_WARNINGS;CORE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <WarningLevel>TurnOffAllWarnings</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <PreprocessorDefinitions>NDEBUG;_CRT_SECURE_NO_WARNINGS;CORE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>$(ProjectDir)..\..\deps\Qt\6.7.2\msvc2019_64\include;$(ProjectDir)..\..\deps\Qt\6.7.2\msvc2019_64\include\QtCore;$(ProjectDir)..\..\deps\Qt\6.7.2\msvc2019_64\include\QtConcurrent;$(ProjectDir)..\..\deps\Qt\6.7.2\msvc2019_64\include\QtOpenGLWidgets;$(ProjectDir)..\..\deps\Qt\6.7.2\msvc2019_64\include\QtSql;..\..\lib\include;..\\\\..\\\\lib\\\\include\\\\gdcm-3.3;..\\\\..\\\\lib\\\\include\\\\gdcm-3.3\\\\vtk-9.3;..\\..\\lib\\include\\vtk-9.3;..\..\lib\include\dcmtk;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <PrecompiledHeaderFile />
+      <AdditionalOptions>/Zc:__cplusplus %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>..\x64\Release;..\..\lib\Release;..\..\lib\release\vtk;..\..\lib\release\dcmtk;..\..\deps\gdcm-install\lib;$(ProjectDir)..\..\deps\Qt\6.7.2\msvc2019_64\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>Qt6Core.lib;Qt6Concurrent.lib;Qt6OpenGLWidgets.lib;Qt6Sql.lib;dcmtk.lib;gdcmcharls.lib;gdcmCommon.lib;gdcmDICT.lib;gdcmDSED.lib;gdcmexpat.lib;gdcmgetopt.lib;gdcmIOD.lib;gdcmjpeg12.lib;gdcmjpeg16.lib;gdcmjpeg8.lib;gdcmMEXD.lib;gdcmMSFF.lib;gdcmopenjp2.lib;gdcmzlib.lib;socketxx.lib;vtkgdcm-9.3.lib;vtkChartsCore-9.3.lib;vtkCommonColor-9.3.lib;vtkCommonComputationalGeometry-9.3.lib;vtkCommonCore-9.3.lib;vtkCommonDataModel-9.3.lib;vtkCommonExecutionModel-9.3.lib;vtkCommonMath-9.3.lib;vtkCommonMisc-9.3.lib;vtkCommonSystem-9.3.lib;vtkCommonTransforms-9.3.lib;vtkDICOMParser-9.3.lib;vtkDomainsChemistry-9.3.lib;vtkDomainsChemistryOpenGL2-9.3.lib;vtkdoubleconversion-9.3.lib;vtkexodusII-9.3.lib;vtkexpat-9.3.lib;vtkFiltersAMR-9.3.lib;vtkFiltersCore-9.3.lib;vtkFiltersExtraction-9.3.lib;vtkFiltersFlowPaths-9.3.lib;vtkFiltersGeneral-9.3.lib;vtkFiltersGeneric-9.3.lib;vtkFiltersGeometry-9.3.lib;vtkFiltersHybrid-9.3.lib;vtkFiltersHyperTree-9.3.lib;vtkFiltersImaging-9.3.lib;vtkFiltersModeling-9.3.lib;vtkFiltersParallel-9.3.lib;vtkFiltersParallelImaging-9.3.lib;vtkFiltersPoints-9.3.lib;vtkFiltersProgrammable-9.3.lib;vtkFiltersSelection-9.3.lib;vtkFiltersSMP-9.3.lib;vtkFiltersSources-9.3.lib;vtkFiltersStatistics-9.3.lib;vtkFiltersTexture-9.3.lib;vtkFiltersTopology-9.3.lib;vtkFiltersVerdict-9.3.lib;vtkfreetype-9.3.lib;vtkGeovisCore-9.3.lib;vtkgl2ps-9.3.lib;vtkglew-9.3.lib;vtkGUISupportQt-9.3.lib;vtkhdf5_hl-9.3.lib;vtkhdf5-9.3.lib;vtkImagingColor-9.3.lib;vtkImagingCore-9.3.lib;vtkImagingFourier-9.3.lib;vtkImagingGeneral-9.3.lib;vtkImagingHybrid-9.3.lib;vtkImagingMath-9.3.lib;vtkImagingMorphological-9.3.lib;vtkImagingSources-9.3.lib;vtkImagingStatistics-9.3.lib;vtkImagingStencil-9.3.lib;vtkInfovisCore-9.3.lib;vtkInfovisLayout-9.3.lib;vtkInteractionImage-9.3.lib;vtkInteractionStyle-9.3.lib;vtkInteractionWidgets-9.3.lib;vtkIOAMR-9.3.lib;vtkIOAsynchronous-9.3.lib;vtkIOCityGML-9.3.lib;vtkIOCore-9.3.lib;vtkIOEnSight-9.3.lib;vtkIOExodus-9.3.lib;vtkIOExport-9.3.lib;vtkIOExportGL2PS-9.3.lib;vtkIOExportPDF-9.3.lib;vtkIOGeometry-9.3.lib;vtkIOImage-9.3.lib;vtkIOImport-9.3.lib;vtkIOInfovis-9.3.lib;vtkIOLegacy-9.3.lib;vtkIOLSDyna-9.3.lib;vtkIOMINC-9.3.lib;vtkIOMovie-9.3.lib;vtkIONetCDF-9.3.lib;vtkIOParallel-9.3.lib;vtkIOParallelXML-9.3.lib;vtkIOPLY-9.3.lib;vtkIOSegY-9.3.lib;vtkIOSQL-9.3.lib;vtkIOTecplotTable-9.3.lib;vtkIOVeraOut-9.3.lib;vtkIOVideo-9.3.lib;vtkIOXML-9.3.lib;vtkIOXMLParser-9.3.lib;vtkjpeg-9.3.lib;vtkjsoncpp-9.3.lib;vtklibharu-9.3.lib;vtklibxml2-9.3.lib;vtklz4-9.3.lib;vtklzma-9.3.lib;vtkmetaio-9.3.lib;vtknetcdf-9.3.lib;vtkogg-9.3.lib;vtkParallelCore-9.3.lib;vtkpng-9.3.lib;vtkpugixml-9.3.lib;vtkRenderingAnnotation-9.3.lib;vtkRenderingContext2D-9.3.lib;vtkRenderingContextOpenGL2-9.3.lib;vtkRenderingCore-9.3.lib;vtkRenderingFreeType-9.3.lib;vtkRenderingGL2PSOpenGL2-9.3.lib;vtkRenderingImage-9.3.lib;vtkRenderingLabel-9.3.lib;vtkRenderingLOD-9.3.lib;vtkRenderingOpenGL2-9.3.lib;vtkRenderingQt-9.3.lib;vtkRenderingVolume-9.3.lib;vtkRenderingVolumeOpenGL2-9.3.lib;vtksqlite-9.3.lib;vtksys-9.3.lib;vtktheora-9.3.lib;vtktiff-9.3.lib;vtkverdict-9.3.lib;vtkViewsContext2D-9.3.lib;vtkViewsCore-9.3.lib;vtkViewsInfovis-9.3.lib;vtkViewsQt-9.3.lib;vtkzlib-9.3.lib;ws2_32.lib;netapi32.lib;iphlpapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/ignore:4099 %(AdditionalOptions)</AdditionalOptions>
+    </Link>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

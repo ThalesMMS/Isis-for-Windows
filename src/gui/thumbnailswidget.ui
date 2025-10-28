@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ThumbnailsWidget</class>
+ <widget class="QWidget" name="ThumbnailsWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>235</width>
+    <height>700</height>
+   </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>0</width>
+    <height>0</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>16777215</width>
+    <height>16777215</height>
+   </size>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+    <horstretch>1</horstretch>
+    <verstretch>1</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="windowTitle">
+   <string>ThumbnailsWidget</string>
+  </property>
+  <property name="styleSheet">
+<string notr="true">QTabBar::tab {
+    background-color: #3a3a3a;
+    border: 1px solid #4c4c4c;
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    color: #dcdcdc;
+    font-size: 9pt;
+    min-height: 24px;
+    padding: 2px 10px;
+    margin: 0 1px;
+}
+
+QTabBar::tab:selected {
+    background-color: #484848;
+    color: #f8d560;
+    border-color: #f8d560;
+}
+
+QTabBar::tab:hover {
+    background-color: #424242;
+}
+
+QTabWidget::pane {
+    border: 1px solid #4c4c4c;
+    padding-top: 4px;
+    background-color: #2e2e2e;
+}
+
+#ThumbnailsWidget {
+    background-color: #2e2e2e;
+    color: #f5f5f5;
+}
+</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <property name="spacing">
+    <number>6</number>
+   </property>
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+  </layout>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <resources/>
+ <connections/>
+</ui>

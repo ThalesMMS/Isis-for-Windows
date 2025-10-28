@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>guiClass</class>
+ <widget class="QMainWindow" name="guiClass">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>923</width>
+    <height>798</height>
+   </rect>
+  </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
+  <property name="contextMenuPolicy">
+   <enum>Qt::PreventContextMenu</enum>
+  </property>
+  <property name="windowTitle">
+   <string>gui</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true"/>
+  </property>
+  <property name="tabShape">
+   <enum>QTabWidget::Rounded</enum>
+  </property>
+  <widget class="QWidget" name="centralWidget">
+   <layout class="QGridLayout" name="gridLayout_2">
+    <property name="leftMargin">
+     <number>0</number>
+    </property>
+    <property name="topMargin">
+     <number>0</number>
+    </property>
+    <property name="rightMargin">
+     <number>0</number>
+    </property>
+    <property name="bottomMargin">
+     <number>0</number>
+    </property>
+    <property name="spacing">
+     <number>0</number>
+    </property>
+   </layout>
+  </widget>
+  <action name="actionOpenDICOMfile">
+   <property name="icon">
+    <iconset resource="gui.qrc">
+     <normaloff>:/res/icon_file.png</normaloff>:/res/icon_file.png</iconset>
+   </property>
+   <property name="text">
+    <string>Open DICOM file</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Shift+O</string>
+   </property>
+  </action>
+  <action name="actionOpenDICOMfolder">
+   <property name="icon">
+    <iconset resource="gui.qrc">
+     <normaloff>:/res/icon_folder.png</normaloff>:/res/icon_folder.png</iconset>
+   </property>
+   <property name="text">
+    <string>Open DICOM folder</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="actionMultiplanar_reconstruction_MPR">
+   <property name="icon">
+    <iconset resource="gui.qrc">
+     <normaloff>:/res/mpr_icon.png</normaloff>:/res/mpr_icon.png</iconset>
+   </property>
+   <property name="text">
+    <string>Multiplanar reconstruction</string>
+   </property>
+  </action>
+  <action name="action3D_volume_rendering">
+   <property name="icon">
+    <iconset resource="gui.qrc">
+     <normaloff>:/res/3d_icon.png</normaloff>:/res/3d_icon.png</iconset>
+   </property>
+   <property name="text">
+    <string>3D volume rendering</string>
+   </property>
+  </action>
+  <action name="actionFlip_horizontal">
+   <property name="icon">
+    <iconset resource="gui.qrc">
+     <normaloff>:/res/fliphorizontal_icon.png</normaloff>:/res/fliphorizontal_icon.png</iconset>
+   </property>
+   <property name="text">
+    <string>Flip horizontal</string>
+   </property>
+  </action>
+  <action name="actionFlip_vertical">
+   <property name="icon">
+    <iconset resource="gui.qrc">
+     <normaloff>:/res/flipvertical_icon.png</normaloff>:/res/flipvertical_icon.png</iconset>
+   </property>
+   <property name="text">
+    <string>Flip vertical</string>
+   </property>
+  </action>
+  <action name="actionRotate_left">
+   <property name="icon">
+    <iconset resource="gui.qrc">
+     <normaloff>:/res/rotateleft_icon.png</normaloff>:/res/rotateleft_icon.png</iconset>
+   </property>
+   <property name="text">
+    <string>Rotate left</string>
+   </property>
+  </action>
+  <action name="actionRotate_right">
+   <property name="icon">
+    <iconset resource="gui.qrc">
+     <normaloff>:/res/rotateright_icon.png</normaloff>:/res/rotateright_icon.png</iconset>
+   </property>
+   <property name="text">
+    <string>Rotate right</string>
+   </property>
+  </action>
+  <action name="actionInvert">
+   <property name="icon">
+    <iconset resource="gui.qrc">
+     <normaloff>:/res/invert_icon.png</normaloff>:/res/invert_icon.png</iconset>
+   </property>
+   <property name="text">
+    <string>Invert</string>
+   </property>
+  </action>
+  <action name="actionSARS_CoV_2_detection">
+   <property name="icon">
+    <iconset resource="gui.qrc">
+     <normaloff>:/res/coronavirus_icon.png</normaloff>:/res/coronavirus_icon.png</iconset>
+   </property>
+   <property name="text">
+    <string>SARS-CoV-2 detection</string>
+   </property>
+  </action>
+  <action name="actionClose_all_patients">
+   <property name="icon">
+    <iconset resource="gui.qrc">
+     <normaloff>:/res/closeAll_icon.png</normaloff>:/res/closeAll_icon.png</iconset>
+   </property>
+   <property name="text">
+    <string>Close all patients</string>
+   </property>
+   <property name="shortcut">
+    <string>Esc</string>
+   </property>
+  </action>
+ </widget>
+ <layoutdefault spacing="6" margin="11"/>
+ <resources>
+  <include location="gui.qrc"/>
+ </resources>
+ <connections/>
+ <slots>
+  <slot>openFileClicked()</slot>
+  <slot>openFolderClicked()</slot>
+ </slots>
+</ui>

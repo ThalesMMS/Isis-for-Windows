@@ -1,0 +1,80 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <?include Installer.Common.wxi ?>
+  <?include IsisDicomViewer.Scope.wxi ?>
+
+  <Product Id="*"
+           Name="Isis DICOM Viewer"
+           Language="1033"
+           Version="1.0.0.0"
+           Manufacturer="Isis DICOM Viewer Team"
+           UpgradeCode="3f7f8a4c-c5bc-4fbc-8f3b-9d6abf1f2c81">
+    <Package InstallerVersion="500"
+             InstallScope="$(var.IsisViewerInstallScope)"
+             InstallPrivileges="$(var.IsisViewerPrivileges)"
+             Compressed="yes"
+             Platform="x64"
+             Description="Isis DICOM Viewer Installer" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Isis DICOM Viewer is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <Feature Id="MainFeature" Title="Isis DICOM Viewer" Level="1" Absent="disallow">
+      <ComponentGroupRef Id="AppPayload" />
+      <ComponentRef Id="StartMenuShortcutComponent" />
+      <ComponentRef Id="DesktopShortcutComponent" />
+    </Feature>
+
+    <Property Id="WIXUI_INSTALLDIR" Value="INSTALLFOLDER" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="$(var.IsisViewerInstallFolder)">
+        <Directory Id="INSTALLFOLDER" Name="Isis DICOM Viewer" />
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ProgramMenuDir" Name="Isis DICOM Viewer" />
+      </Directory>
+      <Directory Id="DesktopFolder" />
+    </Directory>
+
+    <Component Id="StartMenuShortcutComponent" Directory="ProgramMenuDir" Guid="$(var.IsisViewerGuid_StartMenu)">
+      <Shortcut Id="StartMenuShortcut"
+                Directory="ProgramMenuDir"
+                Name="Isis DICOM Viewer"
+                Target="[INSTALLFOLDER]gui.exe"
+                WorkingDirectory="INSTALLFOLDER"
+                Icon="IsisIcon"
+                IconIndex="0" />
+      <RemoveFolder Id="RemoveProgramMenuDir" Directory="ProgramMenuDir" On="uninstall" />
+      <RegistryValue Root="$(var.IsisViewerRegistryRoot)"
+                     Key="Software\IsisDicomViewer"
+                     Name="StartMenuShortcut"
+                     Type="integer"
+                     Value="1"
+                     KeyPath="yes" />
+    </Component>
+
+    <Component Id="DesktopShortcutComponent" Directory="DesktopFolder" Guid="$(var.IsisViewerGuid_Desktop)">
+      <Shortcut Id="DesktopShortcut"
+                Directory="DesktopFolder"
+                Name="Isis DICOM Viewer"
+                Target="[INSTALLFOLDER]gui.exe"
+                WorkingDirectory="INSTALLFOLDER"
+                Icon="IsisIcon"
+                IconIndex="0" />
+      <RemoveFolder Id="RemoveDesktopShortcut" Directory="DesktopFolder" On="uninstall" />
+      <RegistryValue Root="$(var.IsisViewerRegistryRoot)"
+                     Key="Software\IsisDicomViewer"
+                     Name="DesktopShortcut"
+                     Type="integer"
+                     Value="1"
+                     KeyPath="yes" />
+    </Component>
+
+    <Icon Id="IsisIcon" SourceFile="$(var.SourceDir)\res\app_icon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="IsisIcon" />
+
+    <UIRef Id="WixUI_InstallDir" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.ProjectRoot)\installer\license.rtf" />
+  </Product>
+</Wix>

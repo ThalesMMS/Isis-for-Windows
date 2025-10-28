@@ -1,0 +1,6 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Treat vendored dependencies as vendored code so they do not skew language stats
+deps/** linguist-vendored
+lib/include/** linguist-vendored

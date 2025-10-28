@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<Include>
+  <?define IsisViewerInstallFolder="LocalAppDataFolder" ?>
+  <?define IsisViewerRegistryRoot="HKCU" ?>
+  <?define IsisViewerInstallScope="perUser" ?>
+  <?define IsisViewerPrivileges="limited" ?>
+</Include>

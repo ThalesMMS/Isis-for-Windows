@@ -1,0 +1,636 @@
+/*
+ * ------------------------------------------------------------------------------------
+ *  File: vtkwidget2d.cpp
+ *  Project: Isis DICOM Viewer (derived from Asclepios DICOM Viewer)
+ *
+ *  Original code:
+ *      Copyright (c) 2020  Gavrilovici Eduard
+ *
+ *  Fork, refactoring, and ongoing development:
+ *      Copyright (c) 2025  Thales Matheus Mendonca Santos
+ *
+ *  Description:
+ *      Implements the VTK widget responsible for rendering a single 2D image slice.
+ *
+ *  License:
+ *      This file is part of a derived work based on the Asclepios DICOM Viewer,
+ *      licensed under the MIT License.
+ *
+ *      Permission is hereby granted, free of charge, to any person obtaining a copy
+ *      of this software and associated documentation files (the "Software"), to deal
+ *      in the Software without restriction, including without limitation the rights
+ *      to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ *      copies of the Software, and to permit persons to whom the Software is
+ *      furnished to do so, subject to the following conditions:
+ *
+ *      The above copyright notice and this permission notice shall be included in
+ *      all copies or substantial portions of the Software.
+ *
+ *      THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ *      IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ *      FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ *      AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ *      LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *      OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ *      SOFTWARE.
+ * ------------------------------------------------------------------------------------
+ */
+
+#include "vtkwidget2d.h"
+#include "smartdjdecoderregistration.h"
+#include "utils.h"
+#include "vtkwidget2dinteractorstyle.h"
+
+#include <vtkCamera.h>
+#include <vtkImageActor.h>
+#include <vtkDataArray.h>
+#include <vtkImageData.h>
+#include <vtkPointData.h>
+#include <vtkRenderWindowInteractor.h>
+#include <vtkRendererCollection.h>
+#include <vtkSmartPointer.h>
+
+#include <QLoggingCategory>
+#include <QString>
+#include <QVariant>
+#include <QtGlobal>
+
+#include <algorithm>
+#include <cmath>
+#include <memory>
+#include <sstream>
+#include <stdexcept>
+#include <mutex>
+#include <unordered_set>
+
+Q_LOGGING_CATEGORY(lcVtkWidget2D, "isis.gui.vtkwidget2d")
+
+namespace
+{
+        using isis::gui::vtkWidget2D;
+
+        std::mutex& instanceMutex()
+        {
+                static std::mutex mutex;
+                return mutex;
+        }
+
+        std::unordered_set<vtkWidget2D*>& instances()
+        {
+                static std::unordered_set<vtkWidget2D*> widgets;
+                return widgets;
+        }
+
+        void registerInstance(vtkWidget2D* t_instance)
+        {
+                if (!t_instance)
+                {
+                        return;
+                }
+                std::lock_guard<std::mutex> lock(instanceMutex());
+                instances().insert(t_instance);
+        }
+
+        void unregisterInstance(vtkWidget2D* t_instance)
+        {
+                if (!t_instance)
+                {
+                        return;
+                }
+                std::lock_guard<std::mutex> lock(instanceMutex());
+                instances().erase(t_instance);
+        }
+
+        vtkWidget2D* findInstance(const isis::core::Series* t_series, const isis::core::Image* t_image)
+        {
+                std::lock_guard<std::mutex> lock(instanceMutex());
+                vtkWidget2D* seriesMatch = nullptr;
+                for (auto* candidate : instances())
+                {
+                        if (!candidate)
+                        {
+                                continue;
+                        }
+                        if (t_image && candidate->getImage() == t_image)
+                        {
+                                return candidate;
+                        }
+                        if (t_series && candidate->getSeries() == t_series)
+                        {
+                                seriesMatch = candidate;
+                        }
+                }
+                return seriesMatch;
+        }
+
+        class CodecRegistrationGuard
+        {
+        public:
+                CodecRegistrationGuard()
+                {
+			isis::core::SmartDJDecoderRegistration::registerCodecs();
+		}
+
+		~CodecRegistrationGuard()
+		{
+			isis::core::SmartDJDecoderRegistration::cleanup();
+		}
+
+		CodecRegistrationGuard(const CodecRegistrationGuard&) = delete;
+		CodecRegistrationGuard& operator=(const CodecRegistrationGuard&) = delete;
+        };
+
+        std::string toolDisplayName(isis::gui::InteractionTool t_tool)
+        {
+                using isis::gui::InteractionTool;
+                switch (t_tool)
+                {
+                case InteractionTool::scroll:
+                        return "Scroll";
+                case InteractionTool::window:
+                        return "Window";
+                case InteractionTool::zoom:
+                        return "Zoom";
+                case InteractionTool::pan:
+                        return "Pan";
+                default:
+                        return {};
+                }
+        }
+
+        std::string formatHuValue(double hu)
+        {
+                std::ostringstream stream;
+                stream.setf(std::ios::fixed);
+                stream.precision(1);
+		stream << hu;
+		return stream.str();
+	}
+}
+
+//-----------------------------------------------------------------------------
+isis::gui::vtkWidget2D::vtkWidget2D()
+        : m_activeTool(InteractionTool::scroll)
+{
+        registerInstance(this);
+}
+
+//-----------------------------------------------------------------------------
+isis::gui::vtkWidget2D::~vtkWidget2D()
+{
+        if (m_bridgeTarget)
+        {
+                m_bridgeTarget->setProperty(Widget2D::vtkWidgetPropertyName, QVariant());
+        }
+        unregisterInstance(this);
+}
+
+//-----------------------------------------------------------------------------
+void isis::gui::vtkWidget2D::initImageReader()
+{
+        qCInfo(lcVtkWidget2D)
+                << "Initializing image volume for series"
+                << (m_series ? QString::fromStdString(m_series->getUID()) : QStringLiteral("<null>"))
+		<< "image"
+		<< (m_image ? QString::fromStdString(m_image->getSOPInstanceUID()) : QStringLiteral("<null>"));
+	resetOverlay();
+	if (!m_image)
+	{
+		qCCritical(lcVtkWidget2D) << "initImageReader aborted: image is null.";
+		throw std::runtime_error("image is null!");
+	}
+        CodecRegistrationGuard guard;
+        QString failureReason;
+        m_volume = m_image->getDicomVolume(&failureReason);
+        if (!m_volume || !m_volume->ImageData)
+        {
+                const auto message = failureReason.isEmpty()
+                        ? QStringLiteral("Failed to load image volume.")
+                        : failureReason;
+                qCCritical(lcVtkWidget2D)
+                        << "initImageReader failed: DICOM volume unavailable."
+                        << "reason:" << message;
+                throw std::runtime_error(message.toStdString());
+        }
+	qCInfo(lcVtkWidget2D)
+		<< "Loaded DICOM volume with dimensions"
+		<< m_volume->ImageData->GetDimensions()[0]
+		<< m_volume->ImageData->GetDimensions()[1]
+		<< m_volume->ImageData->GetDimensions()[2];
+}
+
+//-----------------------------------------------------------------------------
+bool isis::gui::vtkWidget2D::initWidgetDICOM()
+{
+	if (!m_volume || !m_volume->ImageData)
+	{
+		qCCritical(lcVtkWidget2D) << "initWidgetDICOM aborted: missing volume/image data.";
+		return false;
+	}
+
+	if (!m_dcmWidget)
+	{
+		m_dcmWidget = vtkSmartPointer<vtkWidgetDICOM>::New();
+		m_dcmWidget->SetRenderWindow(m_renderWindows[0]);
+		m_activeRenderWindow = m_dcmWidget->GetRenderWindow();
+		if (auto* const renderWindow = m_dcmWidget->GetRenderWindow())
+		{
+			auto* const rendererCollection = renderWindow->GetRenderers();
+			auto* const renderer = m_dcmWidget->GetRenderer();
+			auto* const imageActor = m_dcmWidget->GetImageActor();
+			if (renderer && rendererCollection &&
+				rendererCollection->IsItemPresent(renderer) == 0)
+			{
+				renderWindow->AddRenderer(renderer);
+				qCInfo(lcVtkWidget2D) << "Added renderer to render window.";
+			}
+			if (renderer && imageActor &&
+				renderer->GetViewProps()->IsItemPresent(imageActor) == 0)
+			{
+				renderer->AddViewProp(imageActor);
+				qCInfo(lcVtkWidget2D) << "Added image actor to renderer.";
+			}
+		}
+		initRenderingLayers();
+	}
+
+	m_dcmWidget->setVolume(m_volume);
+	return true;
+}
+
+//-----------------------------------------------------------------------------
+void isis::gui::vtkWidget2D::applyTransformation(const transformationType& t_type)
+{
+	if (!m_dcmWidget)
+	{
+		qCWarning(lcVtkWidget2D) << "applyTransformation() ignored - vtkWidgetDICOM missing.";
+		return;
+	}
+
+	auto* const renderer = m_dcmWidget->GetRenderer();
+	auto* const actor = m_dcmWidget->GetImageActor();
+
+	switch (t_type)
+	{
+	case transformationType::flipHorizontal:
+		if (actor)
+		{
+			double scale[3];
+			actor->GetScale(scale);
+			actor->SetScale(-scale[0], scale[1], scale[2]);
+			actor->Modified();
+		}
+		break;
+	case transformationType::flipVertical:
+		if (actor)
+		{
+			double scale[3];
+			actor->GetScale(scale);
+			actor->SetScale(scale[0], -scale[1], scale[2]);
+			actor->Modified();
+		}
+		break;
+	case transformationType::rotateLeft:
+		if (renderer && renderer->GetActiveCamera())
+		{
+			renderer->GetActiveCamera()->Azimuth(-90.0);
+		}
+		break;
+	case transformationType::rotateRight:
+		if (renderer && renderer->GetActiveCamera())
+		{
+			renderer->GetActiveCamera()->Azimuth(90.0);
+		}
+		break;
+	case transformationType::invert:
+		invertColors();
+		break;
+	default:
+		break;
+	}
+
+	if (m_volume && m_volume->ImageData)
+	{
+		m_volume->ImageData->Modified();
+	}
+	m_dcmWidget->Render();
+	updateOverlayZoomFactor();
+}
+
+//-----------------------------------------------------------------------------
+void isis::gui::vtkWidget2D::setInteractor(vtkRenderWindowInteractor* t_interactor)
+{
+	m_interactor = t_interactor;
+	if (!m_interactor)
+	{
+		return;
+	}
+
+	m_interactor->SetInteractorStyle(vtkSmartPointer<vtkWidget2DInteractorStyle>::New());
+	if (m_dcmWidget)
+	{
+		m_dcmWidget->SetupInteractor(m_interactor);
+		m_activeRenderWindow = m_dcmWidget->GetRenderWindow();
+	}
+}
+
+//-----------------------------------------------------------------------------
+void isis::gui::vtkWidget2D::render()
+{
+	if (!m_volume || !m_volume->ImageData)
+	{
+		qCCritical(lcVtkWidget2D) << "Render aborted - image data unavailable.";
+		throw std::runtime_error("Image data unavailable.");
+	}
+	if (!initWidgetDICOM())
+	{
+		qCCritical(lcVtkWidget2D) << "Render aborted - DICOM widget initialization failed.";
+		throw std::runtime_error("Failed to configure DICOM widget.");
+	}
+	if (!m_dcmWidget)
+	{
+		qCCritical(lcVtkWidget2D) << "Render aborted - vtkWidgetDICOM not available.";
+		throw std::runtime_error("vtkWidgetDICOM unavailable.");
+	}
+	auto* const interactorStyle =
+		dynamic_cast<vtkWidget2DInteractorStyle*>(m_dcmWidget->GetRenderWindow()->
+			GetInteractor()->GetInteractorStyle());
+	if (interactorStyle)
+	{
+		interactorStyle->setWidget(this);
+		interactorStyle->setSeries(m_series);
+		interactorStyle->setImage(m_image);
+		interactorStyle->updateOvelayImageNumber(0);
+		qCInfo(lcVtkWidget2D) << "InteractorStyle configured.";
+        }
+        fitImage();
+        createvtkWidgetOverlay();
+        updateOverlayTool(toolDisplayName(m_activeTool));
+        m_dcmWidget->GetRenderWindow()->Render();
+        updateOverlayZoomFactor();
+}
+
+//-----------------------------------------------------------------------------
+void isis::gui::vtkWidget2D::createvtkWidgetOverlay()
+{
+	if (!m_widgetOverlay)
+	{
+		m_widgetOverlay = std::make_unique<vtkWidgetOverlay>();
+	}
+	m_widgetOverlay->setRenderer(m_vtkWidgetOverlayRenderer);
+	const auto* metadata = m_volume ? &m_volume->Metadata : nullptr;
+	m_widgetOverlay->createOverlay(m_renderWindows[0], metadata);
+}
+
+//-----------------------------------------------------------------------------
+void isis::gui::vtkWidget2D::updateOverlayZoomFactor()
+{
+	if (m_widgetOverlay && m_dcmWidget)
+	{
+		const double zoom = m_dcmWidget->getZoomFactor();
+		if (std::isfinite(zoom) && zoom > 0.0)
+		{
+			std::ostringstream stream;
+			stream.setf(std::ios::fixed);
+			stream.precision(2);
+			stream << "Zoom: " << zoom;
+			m_widgetOverlay->updateOverlayInCorner(0, "zoom", stream.str());
+			refreshOverlayInCorner(0);
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
+void isis::gui::vtkWidget2D::updateOverlayHUValue(const int& x, const int& y)
+{
+	if (!m_volume || !m_volume->ImageData)
+	{
+		return;
+	}
+	auto* const extent = m_volume->ImageData->GetExtent();
+	if (x < extent[0] || x > extent[1] ||
+		y < extent[2] || y > extent[3])
+	{
+		return;
+	}
+	const int width = extent[1] - extent[0] + 1;
+	const int index = (y - extent[2]) * width + (x - extent[0]);
+	const std::string hu = computeHUValueInPixel(index);
+	m_widgetOverlay->updateOverlayInCorner(2, "huValues", "HU: " + hu);
+	refreshOverlayInCorner(2);
+}
+
+//-----------------------------------------------------------------------------
+std::string isis::gui::vtkWidget2D::computeHUValueInPixel(const int& t_pixel) const
+{
+	if (!m_volume || !m_volume->ImageData)
+	{
+		return "NA";
+	}
+	auto* const scalars = m_volume->ImageData->GetPointData()->GetScalars();
+	if (!scalars || t_pixel < 0 || t_pixel >= scalars->GetNumberOfTuples())
+	{
+		return "NA";
+	}
+	const double value = scalars->GetTuple1(t_pixel);
+	const double slope = m_volume->PixelInfo.RescaleSlope;
+	const double intercept = m_volume->PixelInfo.RescaleIntercept;
+	const double hu = slope * value + intercept;
+	return formatHuValue(hu);
+}
+
+//-----------------------------------------------------------------------------
+void isis::gui::vtkWidget2D::updateOvelayImageNumber(const int& t_current, const int& t_max,
+                                                          const int& t_numberOfSeries)
+{
+	if (!m_widgetOverlay)
+	{
+		return;
+	}
+	std::string number;
+	number.append("Series: " + std::to_string(t_numberOfSeries) + '\n')
+		.append("Image: " + std::to_string(t_current + 1) + "/" + std::to_string(t_max) + '\n');
+	m_widgetOverlay->updateOverlayInCorner(2, std::to_string(static_cast<int>(overlayKey::series)), number);
+	refreshOverlayInCorner(2);
+}
+
+//-----------------------------------------------------------------------------
+void isis::gui::vtkWidget2D::updateOverlayWindowLevelApply(const int& t_window, const int& t_level,
+                                                                const bool& t_apply)
+{
+	if (!m_dcmWidget || !m_widgetOverlay)
+	{
+		return;
+	}
+	t_apply
+		? m_dcmWidget->changeWindowWidthCenter(t_window, t_level)
+		: m_dcmWidget->setWindowWidthCenter(t_window, t_level);
+	std::string window;
+	std::string level;
+	window.append("WL: " + std::to_string(m_dcmWidget->getWindowCenter()));
+	level.append(" / WW: " + std::to_string(m_dcmWidget->getWindowWidth())).append("\n");
+	m_widgetOverlay->updateOverlayInCorner(2,
+		std::to_string(static_cast<int>(overlayKey::window)), window);
+        m_widgetOverlay->updateOverlayInCorner(2,
+                std::to_string(static_cast<int>(overlayKey::level)), level);
+        refreshOverlayInCorner(2);
+}
+
+void isis::gui::vtkWidget2D::setActiveTool(const InteractionTool t_tool)
+{
+        if (m_activeTool == t_tool)
+        {
+                return;
+        }
+        m_activeTool = t_tool;
+        updateOverlayTool(toolDisplayName(m_activeTool));
+}
+
+//-----------------------------------------------------------------------------
+void isis::gui::vtkWidget2D::publishBridgeProperty(Widget2D* t_widget)
+{
+        if (!t_widget)
+        {
+                return;
+        }
+
+        if (m_bridgeTarget && m_bridgeTarget != t_widget)
+        {
+                m_bridgeTarget->setProperty(Widget2D::vtkWidgetPropertyName, QVariant());
+        }
+
+        const auto rawPointer = reinterpret_cast<quintptr>(this);
+        const QVariant property = t_widget->property(Widget2D::vtkWidgetPropertyName);
+        const auto current = property.isValid()
+                ? property.value<quintptr>()
+                : static_cast<quintptr>(0);
+        if (current != rawPointer)
+        {
+                t_widget->setProperty(Widget2D::vtkWidgetPropertyName,
+                        QVariant::fromValue(rawPointer));
+        }
+        m_bridgeTarget = t_widget;
+}
+
+//-----------------------------------------------------------------------------
+isis::gui::vtkWidget2D* isis::gui::vtkWidget2D::findForContext(
+        const core::Series* t_series, const core::Image* t_image)
+{
+        return findInstance(t_series, t_image);
+}
+
+void isis::gui::vtkWidget2D::updateOverlayTool(const std::string& t_toolLabel)
+{
+        if (!m_widgetOverlay)
+        {
+                return;
+        }
+
+        const std::string value = t_toolLabel.empty()
+                ? std::string()
+                : std::string("Tool: ") + t_toolLabel + '\n';
+        m_widgetOverlay->updateOverlayInCorner(2, "tool", value);
+        refreshOverlayInCorner(2);
+}
+
+//-----------------------------------------------------------------------------
+void isis::gui::vtkWidget2D::resetOverlay()
+{
+        if (m_widgetOverlay)
+	{
+		m_widgetOverlay.release();
+		m_widgetOverlay = std::make_unique<vtkWidgetOverlay>();
+	}
+}
+
+//-----------------------------------------------------------------------------
+void isis::gui::vtkWidget2D::invertColors()
+{
+	if (!m_dcmWidget || !m_volume)
+	{
+		return;
+	}
+	m_colorsInverted = !m_colorsInverted;
+	m_dcmWidget->setInvertColors(m_colorsInverted);
+}
+
+//-----------------------------------------------------------------------------
+void isis::gui::vtkWidget2D::fitImage() const
+{
+	if (!m_dcmWidget || !m_dcmWidget->GetImageActor())
+	{
+		throw std::runtime_error("dcmWidget is null!");
+	}
+	m_dcmWidget->GetRenderer()->GetActiveCamera()->SetParallelScale(computeScale());
+}
+
+//-----------------------------------------------------------------------------
+void isis::gui::vtkWidget2D::initRenderingLayers()
+{
+	if (m_renderWindows[0])
+	{
+		auto* const renderer = m_renderWindows[0]->GetRenderers()->GetFirstRenderer();
+		renderer->SetLayer(0);
+		renderer->SetInteractive(1);
+		m_vtkWidgetOverlayRenderer = vtkSmartPointer<vtkRenderer>::New();
+		m_vtkWidgetOverlayRenderer->SetLayer(1);
+		m_vtkWidgetOverlayRenderer->SetInteractive(0);
+		m_renderWindows[0]->SetNumberOfLayers(2);
+		m_renderWindows[0]->AddRenderer(m_vtkWidgetOverlayRenderer);
+	}
+}
+
+//-----------------------------------------------------------------------------
+void isis::gui::vtkWidget2D::refreshOverlayInCorner(const int& t_corner)
+{
+	if (!m_widgetOverlay || !m_renderWindows[0])
+	{
+		return;
+	}
+	m_widgetOverlay->setOverlayInCorner(t_corner);
+	m_renderWindows[0]->Render();
+}
+
+//-----------------------------------------------------------------------------
+double isis::gui::vtkWidget2D::computeScale() const
+{
+        if (!m_dcmWidget || !m_volume || !m_volume->ImageData)
+        {
+                return 1.0;
+        }
+        int extent[6] = {0};
+        m_volume->ImageData->GetExtent(extent);
+        const double widthPixels = static_cast<double>(extent[1] - extent[0] + 1);
+        const double heightPixels = static_cast<double>(extent[3] - extent[2] + 1);
+        if (widthPixels <= 0.0 || heightPixels <= 0.0)
+        {
+                return 1.0;
+        }
+
+        const auto sanitizedSpacing = m_dcmWidget->getLastSanitizedSpacing();
+        const auto originalSpacing = m_dcmWidget->getOriginalSpacing();
+        const bool hasOriginalSpacing = m_dcmWidget->hasOriginalSpacing();
+
+        auto selectSpacing = [&](int axis)
+        {
+                double spacing = sanitizedSpacing[axis];
+                if ((!std::isfinite(spacing) || spacing <= 0.0) && hasOriginalSpacing)
+                {
+                        spacing = originalSpacing[axis];
+                }
+                if (!std::isfinite(spacing) || spacing <= 0.0)
+                {
+                        spacing = 1.0;
+                }
+                constexpr double minSpacing = 0.25;
+                constexpr double maxSpacing = 1e4;
+                return std::clamp(spacing, minSpacing, maxSpacing);
+        };
+
+        const double spacingX = selectSpacing(0);
+        const double spacingY = selectSpacing(1);
+        const double sizeX = std::max(widthPixels, spacingX * widthPixels);
+        const double sizeY = std::max(heightPixels, spacingY * heightPixels);
+        return 0.5 * std::max(sizeX, sizeY);
+}
+
